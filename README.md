@@ -185,7 +185,8 @@ else:
 │   ├── preflight.py    # Check a machine before first run
 │   ├── wan-i2v.service # systemd unit — start on boot, restart on failure
 │   ├── requirements.txt
-│   ├── SETUP.md        # Hardware, drivers, install, always-on service
+│   ├── SETUP.md        # Drivers, install, always-on service
+│   ├── HARDWARE.md     # What to buy: VRAM tiers, GPU ranking, system rules
 │   └── README.md       # Local config and GPU tiers
 ├── openclaw-mcp/
 │   ├── server.py       # MCP server — drives either backend

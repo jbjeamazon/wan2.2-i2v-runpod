@@ -8,7 +8,8 @@ The API deliberately mirrors RunPod's (`/run`, `/runsync`, `/status/{id}`), so
 
 ## Setup
 
-New to this? **[SETUP.md](SETUP.md)** walks the whole path: what hardware you
+Buying hardware? **[HARDWARE.md](HARDWARE.md)** covers what to get and why.
+Already have a machine? **[SETUP.md](SETUP.md)** walks the whole path: what hardware you
 need around the GPU, drivers, install, and running it as an always-on service.
 Run `python3 local/preflight.py` to check a machine before you start.
 
