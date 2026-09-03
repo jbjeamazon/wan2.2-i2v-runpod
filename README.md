@@ -2,6 +2,11 @@
 
 Generate cinematic videos from a single image using **[Wan-AI/Wan2.2-I2V-A14B](https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B-Diffusers)** — a 27B Mixture-of-Experts model (14B active parameters) that supports 480P and 720P output.
 
+> **Running this privately?** See **[PRIVACY.md](PRIVACY.md)**. This repo is
+> currently a public fork, which cannot be made private in place — that
+> document explains what to do instead, along with the other access controls
+> that actually matter (endpoint key, bucket policy, agent reachability).
+
 ---
 
 ## Hardware Requirements
@@ -152,8 +157,9 @@ else:
 | `S3_REGION`             | `auto`                              | Bucket region (`auto` for Cloudflare R2).        |
 | `S3_ACCESS_KEY_ID`      | _(empty)_                           | Bucket access key.                               |
 | `S3_SECRET_ACCESS_KEY`  | _(empty)_                           | Bucket secret key.                               |
-| `S3_PUBLIC_URL_BASE`    | _(empty)_                           | Public CDN base. When set, returns permanent public URLs instead of expiring presigned ones. |
-| `S3_URL_EXPIRY`         | `86400`                             | Presigned URL lifetime in seconds.               |
+| `S3_PUBLIC_URL_BASE`    | _(empty)_                           | Public CDN base. When set, returns **permanent world-readable** URLs instead of expiring presigned ones. Leave unset for a private endpoint. |
+| `S3_URL_EXPIRY`         | `3600`                              | Presigned URL lifetime in seconds. These are unauthenticated bearer links — keep it short. |
+| `S3_SEND_ACL`           | `false`                             | Send an explicit `private` ACL on upload. Leave off for Cloudflare R2, which rejects ACL headers. |
 
 ---
 
@@ -161,7 +167,7 @@ else:
 
 ```
 .
-├── .runpod/
+├── .runpod/            # Public RunPod Hub listing metadata — see PRIVACY.md
 │   ├── hub.json        # RunPod Hub metadata & deployment config
 │   └── tests.json      # Automated test cases
 ├── openclaw-mcp/
@@ -172,6 +178,7 @@ else:
 ├── storage.py          # S3-compatible upload + presigned URLs
 ├── Dockerfile          # Container build definition
 ├── icon.png            # Hub listing icon
+├── PRIVACY.md          # Hardening checklist for a single-user deployment
 └── README.md           # This file
 ```
 
@@ -239,7 +246,3 @@ context with several megabytes of useless text.
 ## Model License
 
 The Wan2.2 model is released under the [Wan Community License](https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B-Diffusers/blob/main/LICENSE). Please review the license terms before commercial use.
-
----
-
-[![RunPod Hub](https://api.runpod.io/badge/YOUR_USERNAME/YOUR_REPO)](https://runpod.io/hub)

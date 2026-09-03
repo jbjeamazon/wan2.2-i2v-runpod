@@ -17,10 +17,14 @@ import uuid
 S3_BUCKET = os.environ.get("S3_BUCKET") or None
 S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL") or None
 S3_REGION = os.environ.get("S3_REGION", "auto")
+# Cloudflare R2 rejects requests carrying an ACL header, so allow opting out.
+S3_SEND_ACL = os.environ.get("S3_SEND_ACL", "false").lower() == "true"
 S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID") or None
 S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY") or None
 S3_PUBLIC_URL_BASE = os.environ.get("S3_PUBLIC_URL_BASE") or None
-S3_URL_EXPIRY = int(os.environ.get("S3_URL_EXPIRY", "86400"))
+# Presigned URLs are unauthenticated bearer links: anyone holding one can fetch
+# the video until it expires. Keep the window short.
+S3_URL_EXPIRY = int(os.environ.get("S3_URL_EXPIRY", "3600"))
 
 _client = None
 
@@ -58,10 +62,16 @@ def upload_video(local_path: str, key_prefix: str = "videos") -> str:
             Key=key,
             Body=f,
             ContentType="video/mp4",
+            # Explicitly private: presigned URLs still work, but a
+            # mis-scoped bucket policy alone will not expose the object.
+            # R2 and some MinIO configs reject ACLs, so this is best-effort.
+            **({"ACL": "private"} if S3_SEND_ACL else {}),
         )
 
-    # A CDN / public bucket base wins over a presigned URL: it has no expiry
-    # and no credentials embedded in the link.
+    # S3_PUBLIC_URL_BASE serves the object from a CDN / public bucket instead.
+    # That URL never expires and is readable by anyone who learns it, so only
+    # set this if the videos are meant to be shareable. For a private endpoint,
+    # leave it unset and keep the bucket's public access blocked.
     if S3_PUBLIC_URL_BASE:
         return f"{S3_PUBLIC_URL_BASE.rstrip('/')}/{key}"
 
