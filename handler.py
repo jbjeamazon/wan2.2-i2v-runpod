@@ -1,12 +1,16 @@
 """
 RunPod Serverless Handler — Wan2.2 Image-to-Video (I2V)
 Model: Wan-AI/Wan2.2-I2V-A14B-Diffusers
+
+Queue-based worker (/run, /runsync). Generation takes minutes, so the queue
+endpoint type is the right fit — submit with /run and poll /status.
 """
 
 import base64
 import os
 import tempfile
 from io import BytesIO
+from urllib.request import urlopen
 
 import numpy as np
 import runpod
@@ -14,6 +18,9 @@ import torch
 from diffusers import WanImageToVideoPipeline
 from diffusers.utils import export_to_video
 from PIL import Image
+
+import loras
+import storage
 
 # ---------------------------------------------------------------------------
 # Configuration (from environment variables)
@@ -30,6 +37,11 @@ DEFAULT_NEGATIVE_PROMPT = (
     "low quality, blurry, jittery, distorted, static, overexposed, "
     "watermark, text, logo, artifacts, worst quality, bad anatomy"
 )
+
+# /run caps payloads at 10 MB and base64 adds ~33%. Stay under it with room
+# for the rest of the JSON body.
+MAX_INLINE_VIDEO_BYTES = 7 * 1024 * 1024
+MAX_IMAGE_DOWNLOAD_BYTES = 32 * 1024 * 1024
 
 # ---------------------------------------------------------------------------
 # Model loading — runs once at worker startup
@@ -48,20 +60,30 @@ if ENABLE_CPU_OFFLOAD:
 else:
     pipe.to(DEVICE)
 
-print("[wan2.2-i2v] Pipeline ready.")
+print(f"[wan2.2-i2v] Pipeline ready. LoRAs available: {loras.available() or 'none'}")
+print(f"[wan2.2-i2v] Video delivery: {'S3 URL' if storage.is_configured() else 'inline base64'}")
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def decode_image(image_input: str) -> Image.Image:
-    """Accept a base64-encoded image (with or without data-URI prefix)."""
-    if "," in image_input:
-        # Strip data URI header: data:image/png;base64,<data>
-        image_input = image_input.split(",", 1)[1]
-    image_data = base64.b64decode(image_input)
-    return Image.open(BytesIO(image_data)).convert("RGB")
+def load_image(image_b64: str | None, image_url: str | None) -> Image.Image:
+    """Load the conditioning image from either a base64 blob or a URL."""
+    if image_url:
+        if not image_url.lower().startswith(("http://", "https://")):
+            raise ValueError("'image_url' must be an http(s) URL.")
+        with urlopen(image_url, timeout=60) as response:
+            data = response.read(MAX_IMAGE_DOWNLOAD_BYTES + 1)
+        if len(data) > MAX_IMAGE_DOWNLOAD_BYTES:
+            raise ValueError("Image at 'image_url' exceeds 32 MB.")
+    else:
+        if "," in image_b64:
+            # Strip data URI header: data:image/png;base64,<data>
+            image_b64 = image_b64.split(",", 1)[1]
+        data = base64.b64decode(image_b64)
+
+    return Image.open(BytesIO(data)).convert("RGB")
 
 
 def calculate_dimensions(image: Image.Image, resolution: str) -> tuple[int, int]:
@@ -80,6 +102,24 @@ def calculate_dimensions(image: Image.Image, resolution: str) -> tuple[int, int]
     return int(width), int(height)
 
 
+def deliver_video(path: str) -> dict:
+    """Return the finished MP4 as a URL when possible, inline base64 otherwise."""
+    if storage.is_configured():
+        return {"video_url": storage.upload_video(path)}
+
+    size = os.path.getsize(path)
+    if size > MAX_INLINE_VIDEO_BYTES:
+        raise ValueError(
+            f"Video is {size / 1e6:.1f} MB, too large to return inline "
+            f"(RunPod caps /run payloads at 10 MB and base64 adds ~33%). "
+            f"Configure S3_BUCKET / S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY to "
+            f"receive a download URL instead, or lower num_frames / resolution."
+        )
+
+    with open(path, "rb") as f:
+        return {"video_base64": base64.b64encode(f.read()).decode("utf-8")}
+
+
 # ---------------------------------------------------------------------------
 # Handler
 # ---------------------------------------------------------------------------
@@ -87,10 +127,16 @@ def calculate_dimensions(image: Image.Image, resolution: str) -> tuple[int, int]
 def handler(job: dict) -> dict:
     job_input = job["input"]
 
+    # --- Introspection: let clients discover installed LoRAs without paying
+    # for a generation. ---
+    if job_input.get("action") == "list_loras":
+        return {"loras": loras.available()}
+
     # --- Required ---
     image_b64 = job_input.get("image")
-    if not image_b64:
-        return {"error": "Missing required field: 'image' (base64-encoded image string)."}
+    image_url = job_input.get("image_url")
+    if not image_b64 and not image_url:
+        return {"error": "Provide either 'image' (base64) or 'image_url'."}
 
     # --- Optional with defaults ---
     prompt = job_input.get("prompt", "")
@@ -98,6 +144,7 @@ def handler(job: dict) -> dict:
     resolution = job_input.get("resolution", DEFAULT_RESOLUTION)
     num_frames = int(job_input.get("num_frames", 81))
     guidance_scale = float(job_input.get("guidance_scale", 3.5))
+    guidance_scale_2 = job_input.get("guidance_scale_2")
     num_inference_steps = int(job_input.get("num_inference_steps", 40))
     fps = int(job_input.get("fps", 16))
     seed = job_input.get("seed", None)
@@ -108,12 +155,21 @@ def handler(job: dict) -> dict:
     if not (1 <= num_frames <= 200):
         return {"error": "num_frames must be between 1 and 200."}
 
-    # --- Decode image ---
-    runpod.serverless.progress_update(job, "Decoding input image...")
+    # --- Resolve LoRAs ---
     try:
-        image = decode_image(image_b64)
+        requested_loras = loras.parse_request(job_input.get("loras"))
+        applied_loras = loras.apply(pipe, requested_loras)
+    except loras.LoraError as exc:
+        return {"error": str(exc)}
     except Exception as exc:
-        return {"error": f"Failed to decode image: {exc}"}
+        return {"error": f"Failed to apply LoRAs: {exc}"}
+
+    # --- Load image ---
+    runpod.serverless.progress_update(job, "Loading input image...")
+    try:
+        image = load_image(image_b64, image_url)
+    except Exception as exc:
+        return {"error": f"Failed to load image: {exc}"}
 
     # --- Compute dimensions ---
     width, height = calculate_dimensions(image, resolution)
@@ -139,6 +195,9 @@ def handler(job: dict) -> dict:
             width=width,
             num_frames=num_frames,
             guidance_scale=guidance_scale,
+            # Wan 2.2 runs a second guidance scale for the low-noise expert;
+            # None makes diffusers reuse `guidance_scale`.
+            guidance_scale_2=float(guidance_scale_2) if guidance_scale_2 is not None else None,
             num_inference_steps=num_inference_steps,
             generator=generator,
         )
@@ -146,7 +205,7 @@ def handler(job: dict) -> dict:
     except Exception as exc:
         return {"error": f"Video generation failed: {exc}"}
 
-    # --- Encode output ---
+    # --- Encode and deliver output ---
     runpod.serverless.progress_update(job, "Encoding output video...")
 
     tmp_path = None
@@ -154,19 +213,22 @@ def handler(job: dict) -> dict:
         with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
             tmp_path = tmp.name
         export_to_video(frames, tmp_path, fps=fps)
-        with open(tmp_path, "rb") as f:
-            video_b64 = base64.b64encode(f.read()).decode("utf-8")
+        delivery = deliver_video(tmp_path)
+    except Exception as exc:
+        return {"error": f"Failed to deliver video: {exc}"}
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
 
     return {
-        "video_base64": video_b64,
+        **delivery,
         "width": width,
         "height": height,
         "num_frames": num_frames,
         "fps": fps,
         "resolution": resolution,
+        "loras": applied_loras,
+        "seed": seed,
     }
 
 

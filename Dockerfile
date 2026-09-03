@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir \
         "transformers>=4.46.0" \
         "accelerate>=1.0.0" \
         "huggingface_hub>=0.24.0" \
+        "boto3>=1.34.0" \
         "hf-transfer" \
         "sentencepiece" \
         "ftfy" \
@@ -36,6 +37,6 @@ from huggingface_hub import snapshot_download; \
 snapshot_download('Wan-AI/Wan2.2-I2V-A14B-Diffusers')"
 
 # ── Application code ─────────────────────────────────────────────────────────
-COPY handler.py .
+COPY handler.py storage.py loras.py ./
 
 CMD ["python", "-u", "handler.py"]
