@@ -6,29 +6,25 @@ granted or denied.
 
 ## 1. The repository (action required)
 
-`jbjeamazon/wan2.2-i2v-runpod` is currently a **public fork** of
-`mindoorio-hue/wan2.2-i2v-runpod`. Two consequences:
+The original repo, `jbjeamazon/wan2.2-i2v-runpod`, is a **public fork** of
+`mindoorio-hue/wan2.2-i2v-runpod`. Two things follow:
 
 - **A fork's visibility cannot be changed.** Visibility is a property of the
-  fork network, so there is no "make private" toggle on this repo. See
+  fork network, so there is no "make private" toggle on it. See
   [About permissions and visibility of forks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/about-permissions-and-visibility-of-forks).
-- **Commits pushed here are served from the parent repo's URL space.** A commit
-  pushed to this fork is fetchable at
+- **Commits pushed to it are served from the parent repo's URL space.** A
+  commit pushed to the fork is fetchable at
   `raw.githubusercontent.com/mindoorio-hue/wan2.2-i2v-runpod/<sha>/<path>`.
-  Deleting the fork or making it private later does not retract commits that
-  are already in the network.
+  Deleting the fork or making it private does not retract commits already in
+  the network.
 
-The fix is to **duplicate into a fresh private repository** rather than convert
-this one:
+This repository is the replacement: a standalone private repo, not a fork,
+seeded with a single commit and no prior history.
 
-```bash
-git clone --bare https://github.com/jbjeamazon/wan2.2-i2v-runpod.git
-cd wan2.2-i2v-runpod.git
-git push --mirror https://github.com/<you>/<new-private-repo>.git
-cd .. && rm -rf wan2.2-i2v-runpod.git
-```
-
-Then delete the public fork. Treat anything already pushed to it as public.
+**Remaining step: delete the public fork.** Go to
+`github.com/jbjeamazon/wan2.2-i2v-runpod` → Settings → Danger Zone → Delete
+this repository. Treat everything ever pushed to it as public — if any of it
+was sensitive, rotate it rather than relying on the deletion.
 
 ## 2. The RunPod Hub files
 
