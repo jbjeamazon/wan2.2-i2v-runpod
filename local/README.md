@@ -8,6 +8,12 @@ The API deliberately mirrors RunPod's (`/run`, `/runsync`, `/status/{id}`), so
 
 ## Setup
 
+New to this? **[SETUP.md](SETUP.md)** walks the whole path: what hardware you
+need around the GPU, drivers, install, and running it as an always-on service.
+Run `python3 local/preflight.py` to check a machine before you start.
+
+The short version:
+
 ```bash
 # 1. PyTorch for your CUDA version, first and separately
 pip install torch --index-url https://download.pytorch.org/whl/cu124

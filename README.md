@@ -182,8 +182,11 @@ else:
 .
 ├── local/
 │   ├── server.py       # Local FastAPI server (same API shape as RunPod)
+│   ├── preflight.py    # Check a machine before first run
+│   ├── wan-i2v.service # systemd unit — start on boot, restart on failure
 │   ├── requirements.txt
-│   └── README.md       # Local setup, GPU tiers, configuration
+│   ├── SETUP.md        # Hardware, drivers, install, always-on service
+│   └── README.md       # Local config and GPU tiers
 ├── openclaw-mcp/
 │   ├── server.py       # MCP server — drives either backend
 │   └── requirements.txt

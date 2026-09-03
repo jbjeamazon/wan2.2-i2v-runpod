@@ -1,0 +1,46 @@
+# Runs the Wan 2.2 server as a background service that starts on boot.
+# This is what makes the box "standalone" — no terminal left open, survives
+# reboots, restarts itself if it crashes.
+#
+#   sudo cp local/wan-i2v.service /etc/systemd/system/
+#   sudo nano /etc/systemd/system/wan-i2v.service     # edit User and paths
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now wan-i2v
+#   systemctl status wan-i2v
+#   journalctl -u wan-i2v -f
+
+[Unit]
+Description=Wan 2.2 image-to-video server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# --- edit these three ---
+User=YOUR_USERNAME
+WorkingDirectory=/home/YOUR_USERNAME/wan22-i2v
+ExecStart=/home/YOUR_USERNAME/wan22-i2v/.venv/bin/python local/server.py
+
+# Settings live here so secrets stay out of the unit file.
+# Create it with: WAN_API_KEY=..., LORA_DIR=..., VRAM_MODE=..., one per line.
+EnvironmentFile=-/etc/wan-i2v.env
+
+Restart=on-failure
+RestartSec=10
+
+# Loading ~60 GB of weights takes a while; don't let systemd think it hung.
+TimeoutStartSec=1800
+
+# The GPU is a shared, serial resource — never run two copies at once.
+KillMode=mixed
+KillSignal=SIGINT
+
+# Modest hardening. ReadWritePaths must cover OUTPUT_DIR and the HF cache.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target
