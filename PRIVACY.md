@@ -82,6 +82,17 @@ output videos pass through RunPod's infrastructure, and their Terms of Service
 govern what may be generated there. Verify the current terms against your
 intended use — this is a policy question, not one the code can settle.
 
+**This is what `local/` exists to remove.** Running on your own GPU eliminates
+the operator, the terms of service, and the third-party record in one step.
+Nothing in items 3, 4, 6 or 7 applies to a local deployment.
+
+If you stay on rented hardware, note that *serverless* is the worse posture: it
+routes every prompt through RunPod's managed queue and dashboard, where it sits
+as a queryable job record. Renting a plain GPU pod and running `local/server.py`
+on it keeps the payload out of that control plane. The host still owns the
+machine — only confidential computing (an H100/H200 in CC mode with an attested
+CPU TEE) changes that — but there is no managed queue and no job history.
+
 ## 7. Container images
 
 The GitHub Actions workflows push images to GHCR. At the time of writing these

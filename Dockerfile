@@ -37,6 +37,6 @@ from huggingface_hub import snapshot_download; \
 snapshot_download('Wan-AI/Wan2.2-I2V-A14B-Diffusers')"
 
 # ── Application code ─────────────────────────────────────────────────────────
-COPY handler.py storage.py loras.py ./
+COPY handler.py storage.py loras.py wan_core.py ./
 
 CMD ["python", "-u", "handler.py"]

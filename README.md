@@ -2,6 +2,19 @@
 
 Generate cinematic videos from a single image using **[Wan-AI/Wan2.2-I2V-A14B](https://huggingface.co/Wan-AI/Wan2.2-I2V-A14B-Diffusers)** — a 27B Mixture-of-Experts model (14B active parameters) that supports 480P and 720P output.
 
+## Two deployment modes
+
+| Mode | Where it runs | Privacy | Docs |
+|------|---------------|---------|------|
+| **Local** | Your own GPU | Nothing leaves the machine | **[local/README.md](local/README.md)** |
+| **RunPod serverless** | Rented GPU | Prompts and outputs pass through RunPod | This file |
+
+Both serve the same API shape and share `wan_core.py`, so `openclaw-mcp/` drives
+either with only environment changes. The rest of this file documents the RunPod
+path; for local, start at [local/README.md](local/README.md).
+
+---
+
 > **Running this privately?** See **[PRIVACY.md](PRIVACY.md)**. This repo is
 > currently a public fork, which cannot be made private in place — that
 > document explains what to do instead, along with the other access controls
@@ -167,10 +180,16 @@ else:
 
 ```
 .
+├── local/
+│   ├── server.py       # Local FastAPI server (same API shape as RunPod)
+│   ├── requirements.txt
+│   └── README.md       # Local setup, GPU tiers, configuration
 ├── openclaw-mcp/
-│   ├── server.py       # MCP server exposing the endpoint to OpenClaw
+│   ├── server.py       # MCP server — drives either backend
 │   └── requirements.txt
+├── tests/              # CPU-only suites; see tests/README.md
 ├── handler.py          # RunPod serverless handler
+├── wan_core.py         # Shared pipeline setup, VRAM tiering, validation
 ├── loras.py            # Per-request LoRA loading (both Wan 2.2 experts)
 ├── storage.py          # S3-compatible upload + presigned URLs
 ├── Dockerfile          # Container build definition

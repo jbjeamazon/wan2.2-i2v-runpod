@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """
-MCP server exposing the Wan 2.2 I2V RunPod endpoint to OpenClaw
+MCP server exposing a Wan 2.2 image-to-video endpoint to OpenClaw
 (or any other MCP client).
+
+Works against either backend, because local/server.py mirrors RunPod's API
+shape — only the base URL and auth header differ.
 
 Generation takes minutes, so the work is deliberately split across two tools:
 `generate_video` submits and returns immediately with a job id, and
@@ -9,9 +12,17 @@ Generation takes minutes, so the work is deliberately split across two tools:
 turn and, on most clients, time out before the video is ready.
 
 Environment:
-    RUNPOD_API_KEY      RunPod API key                        (required)
-    RUNPOD_ENDPOINT_ID  Serverless endpoint id                (required)
-    RUNPOD_TIMEOUT      HTTP timeout in seconds               (default 120)
+    WAN_BACKEND         "local" (default) or "runpod"
+
+  local backend:
+    WAN_LOCAL_URL       Base URL of local/server.py  (default http://127.0.0.1:8080)
+    WAN_API_KEY         Bearer token, if the server sets one     (optional)
+
+  runpod backend:
+    RUNPOD_API_KEY      RunPod API key                           (required)
+    RUNPOD_ENDPOINT_ID  Serverless endpoint id                   (required)
+
+    WAN_TIMEOUT         HTTP timeout in seconds                  (default 120)
 """
 
 import os
@@ -22,15 +33,26 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-API_KEY = os.environ.get("RUNPOD_API_KEY")
-ENDPOINT_ID = os.environ.get("RUNPOD_ENDPOINT_ID")
-TIMEOUT = float(os.environ.get("RUNPOD_TIMEOUT", "120"))
+BACKEND = os.environ.get("WAN_BACKEND", "local").lower()
+TIMEOUT = float(os.environ.get("WAN_TIMEOUT", os.environ.get("RUNPOD_TIMEOUT", "120")))
 
-if not API_KEY or not ENDPOINT_ID:
-    raise SystemExit("RUNPOD_API_KEY and RUNPOD_ENDPOINT_ID must both be set.")
+HEADERS = {"Content-Type": "application/json"}
 
-BASE_URL = f"https://api.runpod.ai/v2/{ENDPOINT_ID}"
-HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+if BACKEND == "runpod":
+    API_KEY = os.environ.get("RUNPOD_API_KEY")
+    ENDPOINT_ID = os.environ.get("RUNPOD_ENDPOINT_ID")
+    if not API_KEY or not ENDPOINT_ID:
+        raise SystemExit(
+            "WAN_BACKEND=runpod requires RUNPOD_API_KEY and RUNPOD_ENDPOINT_ID."
+        )
+    BASE_URL = f"https://api.runpod.ai/v2/{ENDPOINT_ID}"
+    HEADERS["Authorization"] = f"Bearer {API_KEY}"
+elif BACKEND == "local":
+    BASE_URL = os.environ.get("WAN_LOCAL_URL", "http://127.0.0.1:8080").rstrip("/")
+    if os.environ.get("WAN_API_KEY"):
+        HEADERS["Authorization"] = f"Bearer {os.environ['WAN_API_KEY']}"
+else:
+    raise SystemExit(f"WAN_BACKEND must be 'local' or 'runpod', got {BACKEND!r}.")
 
 mcp = FastMCP("wan22-i2v")
 
@@ -159,7 +181,7 @@ async def check_video_job(job_id: str) -> dict[str, Any]:
         # inline. Don't hand a multi-megabyte base64 blob back to the model.
         response["note"] = (
             "Endpoint returned the video inline as base64 rather than a URL. "
-            "Configure S3 on the endpoint to get a shareable link."
+            "Configure S3 on the RunPod endpoint to get a link instead."
         )
     return response
 

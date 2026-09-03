@@ -1,0 +1,14 @@
+# Install PyTorch for your CUDA version first, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+diffusers>=0.32.0
+transformers>=4.46.0
+accelerate>=1.0.0
+huggingface_hub>=0.24.0
+safetensors
+sentencepiece
+ftfy
+opencv-python-headless
+pillow
+numpy
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
