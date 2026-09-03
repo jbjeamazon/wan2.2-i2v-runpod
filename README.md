@@ -167,9 +167,6 @@ else:
 
 ```
 .
-├── .runpod/            # Public RunPod Hub listing metadata — see PRIVACY.md
-│   ├── hub.json        # RunPod Hub metadata & deployment config
-│   └── tests.json      # Automated test cases
 ├── openclaw-mcp/
 │   ├── server.py       # MCP server exposing the endpoint to OpenClaw
 │   └── requirements.txt
@@ -177,7 +174,6 @@ else:
 ├── loras.py            # Per-request LoRA loading (both Wan 2.2 experts)
 ├── storage.py          # S3-compatible upload + presigned URLs
 ├── Dockerfile          # Container build definition
-├── icon.png            # Hub listing icon
 ├── PRIVACY.md          # Hardening checklist for a single-user deployment
 └── README.md           # This file
 ```

@@ -32,11 +32,13 @@ Then delete the public fork. Treat anything already pushed to it as public.
 
 ## 2. The RunPod Hub files
 
-`.runpod/hub.json` and `.runpod/tests.json` exist to list this worker on the
-**public RunPod Hub marketplace**, which requires a public repo. They are inert
-unless you submit the repo to the Hub — but they are the wrong shape for a
-private deployment. For a private endpoint, deploy from a container image or a
-private repo connection instead, and delete these two files.
+**Removed.** `.runpod/hub.json` and `.runpod/tests.json` existed to list this
+worker on the **public RunPod Hub marketplace**, which requires a public repo.
+They have been deleted, along with the README's Hub badge.
+
+Deploy the endpoint from a container image or a private repo connection
+instead. `icon.png` is now unreferenced and can go too if you want it gone.
+Do not re-add the Hub files unless you intend a public release.
 
 ## 3. Endpoint access
 
