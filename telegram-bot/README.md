@@ -141,5 +141,43 @@ Telegram connection. Those need credentials and a GPU.
 - **Boot latency.** Renting, booting, installing and loading weights takes
   several minutes before rendering begins. This is per job, by design — the
   instance is destroyed afterwards.
-- **Vast.ai hosts have root on their machines.** The marketplace is cheap and
-  permissive, not private. See `../PRIVACY.md`.
+## Who can see your data
+
+Worth being precise about, because the answer is not "nobody".
+
+| Party | Sees | For how long |
+|---|---|---|
+| **Telegram** | Input image, prompt text, output video | Indefinitely — bot chats are never end-to-end encrypted |
+| **The Vast.ai host** | Everything on the instance: input image, `job.json` (which contains your prompt), the rendered video | While the job runs |
+| **Vast.ai the company** | Account identity, what you rented, when, for how long, billing | Per their retention |
+| **Your bot host** | Everything in `jobs/` | Until you delete it |
+
+**The Vast.ai host is a person with root on the physical machine.** Your
+container is a Docker container on their box, and a container is not a security
+boundary against host root: they can `docker exec` into it, read its filesystem
+directly, or inspect process memory. On the Community tier they are individuals
+with hardware at home; on Verified they are vetted operators. `VAST_VERIFIED_ONLY`
+and `VAST_DATACENTER_ONLY` change *who* holds that access. Nothing in this
+config removes it.
+
+TLS and SSH do not help here. They protect data in transit from third parties
+on the network; the host is the destination, not a man in the middle. Only
+confidential computing — an H100/H200 in CC mode with an attested CPU TEE —
+denies the operator access to your data, and that is not what a cheap
+marketplace rental is.
+
+Destroying the instance closes the window; it does not retract anything read
+while the job ran, and it does not guarantee the bytes are wiped from the host's
+physical disk.
+
+**Telegram is the larger exposure**, and it is the one people forget. The
+instance lives for minutes; the Telegram chat lives forever. Bot API
+conversations cannot be secret chats, so Telegram holds your source image, your
+prompt and your finished video on their servers. That is inherent to using a
+Telegram bot at all, not something this code can configure away. A local web UI
+against `local/server.py` avoids it entirely.
+
+## Other limits
+
+- **Vast.ai is the cheap and permissive option, not the private one.** See
+  `../PRIVACY.md`.

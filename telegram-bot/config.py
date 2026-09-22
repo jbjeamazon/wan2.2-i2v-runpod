@@ -74,6 +74,8 @@ class Config:
     vast_disk_gb: int
     vast_gpu_names: tuple[str, ...]
     vast_label: str
+    vast_verified_only: bool
+    vast_datacenter_only: bool
 
     ssh_key_path: Path
     ssh_pub_key_path: Path
@@ -89,7 +91,7 @@ class Config:
 
     @property
     def gpu_query(self) -> dict:
-        return {
+        q = {
             "gpu_ram": {"gte": self.vast_min_vram_gb * 1024},
             "dph_total": {"lte": self.vast_max_dph},
             "rentable": {"eq": True},
@@ -97,6 +99,17 @@ class Config:
             "num_gpus": {"eq": 1},
             "inet_down": {"gt": 200},
         }
+        # A Vast.ai host has root on the machine your container runs on, so who
+        # the host is, is a real consideration. `verified` restricts to hosts
+        # Vast has vetted (their own CLI defaults to this); `datacenter`
+        # narrows further to datacenter operators rather than individuals with
+        # machines at home. Neither removes host root — only confidential
+        # computing does that — but they change who holds it.
+        if self.vast_verified_only:
+            q["verified"] = {"eq": True}
+        if self.vast_datacenter_only:
+            q["datacenter"] = {"eq": True}
+        return q
 
 
 def load_config() -> Config:
@@ -117,6 +130,8 @@ def load_config() -> Config:
         vast_disk_gb=_int("VAST_DISK_GB", 100),
         vast_gpu_names=gpu_names,
         vast_label=_str("VAST_LABEL", "i2v-bot"),
+        vast_verified_only=_str("VAST_VERIFIED_ONLY", "true").lower() == "true",
+        vast_datacenter_only=_str("VAST_DATACENTER_ONLY", "false").lower() == "true",
         ssh_key_path=ssh_key,
         ssh_pub_key_path=Path(_str("SSH_PUBLIC_KEY_PATH", str(ssh_key) + ".pub")).expanduser(),
         model_id=_str("MODEL_ID", "Wan-AI/Wan2.2-I2V-A14B-Diffusers"),

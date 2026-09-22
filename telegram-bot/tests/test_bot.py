@@ -93,4 +93,23 @@ except config.ConfigError as e:
 else:
     sys.exit("FAIL: accepted a non-numeric user id")
 
+os.environ["AUTHORIZED_USER_ID"] = "424242"
+
+# 11. host-vetting filters reach the Vast query, and default to verified-only
+cfg2 = config.load_config()
+assert cfg2.vast_verified_only is True, "verified hosts should be the default"
+assert cfg2.gpu_query["verified"] == {"eq": True}
+assert "datacenter" not in cfg2.gpu_query
+print("11. default query restricts to verified hosts:", cfg2.gpu_query["verified"])
+
+os.environ["VAST_DATACENTER_ONLY"] = "true"
+assert config.load_config().gpu_query["datacenter"] == {"eq": True}
+print("12. VAST_DATACENTER_ONLY=true narrows further to datacenter operators")
+
+os.environ["VAST_VERIFIED_ONLY"] = "false"
+os.environ["VAST_DATACENTER_ONLY"] = "false"
+q = config.load_config().gpu_query
+assert "verified" not in q and "datacenter" not in q
+print("13. both off -> unrestricted host pool (cheapest, least vetted)")
+
 print("\nALL BOT TESTS PASSED")
