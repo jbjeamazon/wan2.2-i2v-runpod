@@ -104,6 +104,32 @@ def load_pipeline(model_id: str, dtype=torch.bfloat16):
     return pipe
 
 
+def apply_loras(pipe, names: list[str]) -> None:
+    """
+    Load LoRAs from the repo or a local path.
+
+    Wan 2.2 is a two-expert MoE: diffusers loads a LoRA into the first denoiser
+    only unless load_into_transformer_2=True, which leaves it inactive for half
+    the denoising schedule. Both are loaded here. This matters most for the
+    Lightning LoRAs, where a half-applied adapter silently ruins a 4-step
+    schedule.
+    """
+    if not names:
+        return
+    adapters = []
+    for name in names:
+        try:
+            pipe.load_lora_weights(name, adapter_name=name)
+            if hasattr(pipe, "transformer_2"):
+                pipe.load_lora_weights(name, adapter_name=name, load_into_transformer_2=True)
+            adapters.append(name)
+        except Exception as exc:
+            report("warning", f"Could not load LoRA {name}: {exc}")
+    if adapters:
+        pipe.set_adapters(adapters, adapter_weights=[1.0] * len(adapters))
+        report("loras", f"Applied: {', '.join(adapters)}")
+
+
 def fit_dimensions(pipe, image: Image.Image, resolution: str) -> tuple[int, int]:
     import numpy as np
     max_area = 720 * 1280 if resolution == "720p" else 480 * 832
@@ -172,6 +198,7 @@ def main() -> int:
         prompts.append(prompts[-1])
 
     pipe = load_pipeline(model_id)
+    apply_loras(pipe, job.get("loras") or [])
 
     image = Image.open(JOB_DIR / "input.png").convert("RGB")
     w, h = fit_dimensions(pipe, image, resolution)

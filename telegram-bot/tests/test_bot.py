@@ -112,4 +112,29 @@ q = config.load_config().gpu_query
 assert "verified" not in q and "datacenter" not in q
 print("13. both off -> unrestricted host pool (cheapest, least vetted)")
 
+os.environ["VAST_VERIFIED_ONLY"] = "true"
+
+# 14. render knobs are configurable, since a 60s video pays each step 12 times
+os.environ.update(DEFAULT_STEPS="4", DEFAULT_LORAS="Wan2.2-Lightning, extra-lora",
+                  DEFAULT_RESOLUTION="720p")
+c = config.load_config()
+assert c.default_steps == 4 and c.default_resolution == "720p"
+assert c.default_loras == ("Wan2.2-Lightning", "extra-lora"), c.default_loras
+print(f"14. steps={c.default_steps}, res={c.default_resolution}, loras={c.default_loras}")
+
+# 15. those reach the JobSpec the bot sends to the GPU
+from jobs import JobSpec
+from pathlib import Path
+spec = JobSpec(image_path=Path("/tmp/x.png"), prompts=["p"] * 12, segments=12,
+               model_id=c.model_id, num_inference_steps=c.default_steps,
+               resolution=c.default_resolution, loras=c.default_loras)
+payload = spec.to_payload()
+assert payload["num_inference_steps"] == 4 and payload["loras"] == ["Wan2.2-Lightning", "extra-lora"]
+assert payload["segments"] == 12
+print(f"15. payload -> steps={payload['num_inference_steps']}, loras={payload['loras']}")
+
+# 16. the cost lever, stated plainly: steps x segments is what you pay for
+for steps, label in ((30, "standard"), (4, "Lightning")):
+    print(f"16. 60s video @ {steps} steps = {12 * steps} denoising passes total ({label})")
+
 print("\nALL BOT TESTS PASSED")

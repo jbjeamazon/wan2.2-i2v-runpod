@@ -121,4 +121,49 @@ if subprocess.run(["which", "ffmpeg"], capture_output=True).returncode == 0:
 else:
     print("9. skipped (ffmpeg not installed in this container)")
 
+# 10. LoRAs load into BOTH Wan 2.2 denoisers, not just the first
+loaded = []
+class TwoExpert:
+    transformer_2 = object()
+    def load_lora_weights(self, name, adapter_name=None, load_into_transformer_2=False):
+        loaded.append((name, adapter_name, load_into_transformer_2))
+    def set_adapters(self, names, adapter_weights=None):
+        loaded.append(("set", tuple(names), tuple(adapter_weights)))
+
+p2 = TwoExpert()
+w.apply_loras(p2, ["Wan2.2-Lightning"])
+flags = {c[2] for c in loaded if c[0] != "set"}
+assert flags == {False, True}, f"must load into both denoisers, got {flags}"
+assert ("set", ("Wan2.2-Lightning",), (1.0,)) in loaded
+print("10. LoRA loaded into transformer AND transformer_2, then activated")
+
+# 11. a single-denoiser pipeline (Wan 2.1, CogVideoX) is not given the kwarg
+loaded.clear()
+class OneExpert:
+    def load_lora_weights(self, name, adapter_name=None, load_into_transformer_2=False):
+        assert load_into_transformer_2 is False, "single-denoiser pipe got transformer_2 kwarg"
+        loaded.append(name)
+    def set_adapters(self, names, adapter_weights=None): pass
+w.apply_loras(OneExpert(), ["some-lora"])
+assert loaded == ["some-lora"]
+print("11. single-denoiser pipeline: loaded once, no transformer_2 kwarg")
+
+# 12. a broken LoRA warns and is skipped rather than killing the whole job
+loaded.clear()
+class Flaky:
+    transformer_2 = object()
+    def load_lora_weights(self, name, adapter_name=None, load_into_transformer_2=False):
+        if name == "broken": raise RuntimeError("404 not found")
+        loaded.append(name)
+    def set_adapters(self, names, adapter_weights=None): loaded.append(("set", tuple(names)))
+w.apply_loras(Flaky(), ["broken", "good"])
+assert ("set", ("good",)) in loaded, loaded
+print("12. unloadable LoRA skipped with a warning; the good one still applies")
+
+# 13. no LoRAs configured -> pipeline untouched
+class Untouched:
+    def load_lora_weights(self, *a, **k): raise AssertionError("should not be called")
+w.apply_loras(Untouched(), [])
+print("13. empty LoRA list -> pipeline left alone")
+
 print("\nALL WORKER TESTS PASSED")

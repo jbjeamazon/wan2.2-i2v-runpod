@@ -50,6 +50,7 @@ class JobSpec:
     seed: int | None = None
     negative_prompt: str = DEFAULT_NEGATIVE
     model_id: str = "Wan-AI/Wan2.2-I2V-A14B-Diffusers"
+    loras: tuple[str, ...] = ()
     job_id: str = field(default_factory=lambda: uuid.uuid4().hex[:12])
 
     def to_payload(self) -> dict:
@@ -62,6 +63,7 @@ class JobSpec:
             "seed": self.seed,
             "negative_prompt": self.negative_prompt,
             "model_id": self.model_id,
+            "loras": list(self.loras),
         }
 
 

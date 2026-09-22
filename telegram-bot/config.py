@@ -81,6 +81,9 @@ class Config:
     ssh_pub_key_path: Path
 
     model_id: str
+    default_steps: int
+    default_resolution: str
+    default_loras: tuple[str, ...]
     work_dir: Path
     log_rejected_ids: bool
     instance_boot_timeout: int
@@ -135,6 +138,10 @@ def load_config() -> Config:
         ssh_key_path=ssh_key,
         ssh_pub_key_path=Path(_str("SSH_PUBLIC_KEY_PATH", str(ssh_key) + ".pub")).expanduser(),
         model_id=_str("MODEL_ID", "Wan-AI/Wan2.2-I2V-A14B-Diffusers"),
+        default_steps=_int("DEFAULT_STEPS", 30),
+        default_resolution=_str("DEFAULT_RESOLUTION", "480p"),
+        default_loras=tuple(
+            n.strip() for n in _str("DEFAULT_LORAS", "").split(",") if n.strip()),
         work_dir=Path(_str("WORK_DIR", "./jobs")).expanduser(),
         log_rejected_ids=_str("LOG_REJECTED_IDS", "false").lower() == "true",
         instance_boot_timeout=_int("INSTANCE_BOOT_TIMEOUT", 900),

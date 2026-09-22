@@ -195,7 +195,8 @@ async def _render(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     spec = JobSpec(
         image_path=image_path, prompts=prompts, segments=segments,
-        model_id=cfg.model_id,
+        model_id=cfg.model_id, num_inference_steps=cfg.default_steps,
+        resolution=cfg.default_resolution, loras=cfg.default_loras,
     )
     try:
         result = await run_job(cfg, vast, spec, relay)

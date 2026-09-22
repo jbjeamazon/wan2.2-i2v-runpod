@@ -52,6 +52,34 @@ Check the number before buying.
 - **Linux.** Ubuntu 24.04 LTS. You need the NVIDIA driver, not a separate CUDA
   toolkit — the PyTorch wheels bundle that.
 
+## Steps are the other half of the answer
+
+VRAM decides whether it runs; **denoising steps decide how long it takes**, and
+chained generation multiplies that. A 60-second video is 12 segments, so every
+step is paid twelve times:
+
+| Steps | Passes for a 60s video | When |
+|-------|------------------------|------|
+| 40 | 480 | default quality |
+| 30 | 360 | the bot's default |
+| 4 | 48 | with a Wan2.2-Lightning LoRA |
+
+Wan2.2-Lightning enables 4-step inference through LoRAs — roughly a 10x cut in
+work, and the single thing that makes long chained videos practical on consumer
+hardware. Set `DEFAULT_LORAS` and `DEFAULT_STEPS=4` together in the bot's
+`.env`; the worker loads it into **both** Wan 2.2 denoisers, which a
+half-applied adapter would otherwise silently ruin.
+
+With Lightning, a 24 GB card handles a 60-second chain in minutes rather than
+the better part of an hour. Without it, plan on roughly 5 minutes per segment
+on a 4090 and proportionally more on a 3090.
+
+One architectural note: **FP8 acceleration needs Ada or newer.** The 4090 and
+5090 have FP8 tensor cores; the 3090 (Ampere) does not, so FP8-quantised
+workflows that roughly halve render time on a 4090 do nothing for a 3090. That
+is the real performance gap between them for this workload, more than raw
+clock or bandwidth.
+
 ## Two ways to spend ~$1,500
 
 **A. Cheap prebuilt + used 3090.** A $700–900 prebuilt, then swap the GPU for a
