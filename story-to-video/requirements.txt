@@ -1,0 +1,9 @@
+httpx>=0.27
+python-dotenv>=1.0
+soundfile>=0.12
+numpy
+# Narration — pick one:
+kokoro>=0.9          # 82M, CPU-capable, Apache-2.0, no voice cloning
+# chatterbox-tts     # voice cloning from ~10s of reference audio, MIT
+# Caption timing:
+openai-whisper>=20231117

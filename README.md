@@ -180,6 +180,15 @@ else:
 
 ```
 .
+├── story-to-video/     # Premise -> narrated, captioned 9:16 video
+│   ├── pipeline.py     # Orchestrator: narration duration drives the cut
+│   ├── scenes.py       # LLM shot list (OpenAI-compatible endpoint)
+│   ├── voice.py        # Kokoro / Chatterbox narration
+│   ├── stills.py       # Keyframes via A1111-compatible txt2img
+│   ├── animate.py      # Animation via local/server.py
+│   ├── captions.py     # Word-level karaoke ASS
+│   ├── assemble.py     # ffmpeg reframe / join / mix / burn
+│   └── README.md
 ├── local/
 │   ├── server.py       # Local FastAPI server (same API shape as RunPod)
 │   ├── preflight.py    # Check a machine before first run

@@ -1,0 +1,7 @@
+stories/
+*.mp4
+*.wav
+*.ass
+__pycache__/
+*.pyc
+.env
