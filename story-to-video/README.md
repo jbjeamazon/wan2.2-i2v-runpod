@@ -90,6 +90,17 @@ Both are safe to build on commercially. **XTTS-v2 (CPML) and F5-TTS weights
 python3 pipeline.py "any premise" --scenes 4 --dry-run
 ```
 
+To run your own shot list instead of the canned one — useful for iterating on
+wording, or when you have no LLM server running:
+
+```bash
+python3 pipeline.py "a C8 Z06 jumps a drawbridge" \
+    --script examples/z06_bridge_jump.json --dry-run
+```
+
+`--script` takes the same JSON shape that every run writes to `script.json`, so
+you can generate once, edit the narration by hand, and re-run.
+
 Swaps the LLM, TTS, text-to-image and image-to-video stages for ffmpeg-generated
 placeholders and runs the **real** assembly. Needs nothing but ffmpeg, finishes
 in about a minute, and writes a genuine mp4 you can play — only the pixels and

@@ -39,7 +39,8 @@ def log(msg: str) -> None:
 
 
 async def build(premise: str, n_scenes: int, style: str, cfg: Config,
-                outfile: Path | None = None, dry_run: bool = False) -> Path:
+                outfile: Path | None = None, dry_run: bool = False,
+                script_file: Path | None = None) -> Path:
     job = cfg.work_dir / f"story_{int(time.time())}"
     for sub in ("audio", "stills", "clips", "vertical"):
         (job / sub).mkdir(parents=True, exist_ok=True)
@@ -50,7 +51,12 @@ async def build(premise: str, n_scenes: int, style: str, cfg: Config,
         log("         Assembly, timing and captions are the real code.")
 
     # 1. shot list -----------------------------------------------------------
-    if dry_run:
+    if script_file:
+        # A hand-written or previously generated shot list. Lets you iterate on
+        # wording, or run the pipeline with no LLM server at all.
+        shots = scenes_mod.parse_scenes(script_file.read_text(), cfg.max_scenes)
+        log(f"Loaded {len(shots)} scenes from {script_file.name}")
+    elif dry_run:
         shots = dryrun.script(n_scenes)
         log(f"Canned shot list: {len(shots)} scenes")
     else:
@@ -147,6 +153,9 @@ def main() -> int:
     p.add_argument("--scenes", type=int, default=6, help="maximum scenes (default 6)")
     p.add_argument("--style", default="", help="visual style applied to every keyframe")
     p.add_argument("--out", type=Path, default=None, help="output path")
+    p.add_argument("--script", type=Path, default=None,
+                   help="load a shot list from JSON instead of calling the LLM. "
+                        "Same shape as the script.json each run writes out.")
     p.add_argument("--dry-run", action="store_true",
                    help="use synthetic stages; needs only ffmpeg. Proves the "
                         "orchestration and assembly work before you install any models.")
@@ -156,7 +165,8 @@ def main() -> int:
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
     try:
         asyncio.run(build(args.premise, min(args.scenes, cfg.max_scenes),
-                          args.style, cfg, args.out, dry_run=args.dry_run))
+                          args.style, cfg, args.out, dry_run=args.dry_run,
+                          script_file=args.script))
     except Exception as exc:
         print(f"\nFailed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
