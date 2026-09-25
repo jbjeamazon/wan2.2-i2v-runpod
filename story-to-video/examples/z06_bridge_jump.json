@@ -1,0 +1,27 @@
+[
+  {
+    "narration": "Three in the morning. The drawbridge starts to climb.",
+    "image_prompt": "wide low-angle night shot of a rising steel drawbridge over dark water, orange sodium lights, wet asphalt reflections, cinematic 35mm, shallow depth of field",
+    "motion_prompt": "bridge deck slowly rising, warning lights pulsing, slow push in"
+  },
+  {
+    "narration": "A yellow C8 Z06 comes out of the dark doing a hundred and forty.",
+    "image_prompt": "yellow mid-engine Chevrolet Corvette C8 Z06 at speed on a wet night road, headlights flaring, motion blur on the guardrails, low camera near the asphalt, cinematic 35mm",
+    "motion_prompt": "car rushing toward camera, streetlights streaking past, hard forward motion"
+  },
+  {
+    "narration": "No brakes. No lift. Just throttle.",
+    "image_prompt": "tight interior shot over the shoulder of a driver gripping a flat-bottom steering wheel, yellow Corvette C8 Z06 cockpit, speedometer glowing, windshield full of rising bridge",
+    "motion_prompt": "hands tightening on the wheel, gauges climbing, slight handheld shake"
+  },
+  {
+    "narration": "The front wheels leave the deck and the whole world goes quiet.",
+    "image_prompt": "yellow Corvette C8 Z06 airborne above a gap in a raised drawbridge, night sky, city lights far below, sparks trailing from the rear diffuser, dramatic low angle, cinematic",
+    "motion_prompt": "car arcing through the air in slow motion, sparks drifting, camera tracking alongside"
+  },
+  {
+    "narration": "Then it lands, and it keeps going.",
+    "image_prompt": "yellow Corvette C8 Z06 slamming down onto the far side of a bridge, tire smoke and sparks exploding outward, rear three-quarter view, orange night lighting, cinematic 35mm",
+    "motion_prompt": "impact, smoke bursting outward, car accelerating away from camera"
+  }
+]
