@@ -39,24 +39,36 @@ def log(msg: str) -> None:
 
 
 async def build(premise: str, n_scenes: int, style: str, cfg: Config,
-                outfile: Path | None = None) -> Path:
+                outfile: Path | None = None, dry_run: bool = False) -> Path:
     job = cfg.work_dir / f"story_{int(time.time())}"
     for sub in ("audio", "stills", "clips", "vertical"):
         (job / sub).mkdir(parents=True, exist_ok=True)
 
+    if dry_run:
+        import dryrun
+        log("DRY RUN: the LLM, TTS, image and video stages are synthetic.")
+        log("         Assembly, timing and captions are the real code.")
+
     # 1. shot list -----------------------------------------------------------
-    log(f"Writing a {n_scenes}-scene shot list with {cfg.llm_model}...")
-    shots = await scenes_mod.write_script(cfg, premise, min_scenes=max(2, n_scenes - 1),
-                                          max_scenes=n_scenes, style=style)
+    if dry_run:
+        shots = dryrun.script(n_scenes)
+        log(f"Canned shot list: {len(shots)} scenes")
+    else:
+        log(f"Writing a {n_scenes}-scene shot list with {cfg.llm_model}...")
+        shots = await scenes_mod.write_script(cfg, premise, min_scenes=max(2, n_scenes - 1),
+                                              max_scenes=n_scenes, style=style)
+        log(f"  {len(shots)} scenes")
     (job / "script.json").write_text(json.dumps([s.to_dict() for s in shots], indent=2))
-    log(f"  {len(shots)} scenes")
 
     # 2. narration first: its duration is the clock everything else runs on ---
     narration_paths, durations = [], []
     for s in shots:
         wav = job / "audio" / f"scene_{s.index:02d}.wav"
         log(f"Voicing scene {s.index + 1}/{len(shots)}...")
-        voice.speak(cfg, s.narration, wav)
+        if dry_run:
+            dryrun.narrate(s.narration, wav)
+        else:
+            voice.speak(cfg, s.narration, wav)
         d = assemble.probe_duration(wav)
         narration_paths.append(wav)
         durations.append(d)
@@ -70,7 +82,10 @@ async def build(premise: str, n_scenes: int, style: str, cfg: Config,
     for s in shots:
         png = job / "stills" / f"scene_{s.index:02d}.png"
         log(f"Keyframe {s.index + 1}/{len(shots)}...")
-        await stills.render_still(cfg, s.image_prompt, png)
+        if dry_run:
+            dryrun.still(s.index, png)
+        else:
+            await stills.render_still(cfg, s.image_prompt, png)
         still_paths.append(png)
 
     # 4. animate each keyframe for its scene's exact length -------------------
@@ -80,7 +95,10 @@ async def build(premise: str, n_scenes: int, style: str, cfg: Config,
         passes = animate.segments_for(seconds)
         log(f"Animating scene {s.index + 1}/{len(shots)} "
             f"({seconds:.1f}s = {passes} pass{'es' if passes > 1 else ''})...")
-        await animate.animate(cfg, png, s.motion_prompt, seconds, clip)
+        if dry_run:
+            dryrun.animate(s.index, seconds, clip)
+        else:
+            await animate.animate(cfg, png, s.motion_prompt, seconds, clip)
         clip_paths.append(clip)
 
     # 5. reframe to 9:16 and cut to the narration ----------------------------
@@ -105,8 +123,12 @@ async def build(premise: str, n_scenes: int, style: str, cfg: Config,
 
     with_audio = assemble.mux(silent, track, job / "with_audio.mp4")
 
-    log(f"Transcribing narration for caption timing ({cfg.whisper_model})...")
-    words = captions.transcribe_words(str(full_narration), cfg.whisper_model)
+    if dry_run:
+        log("Timing captions from scene durations (Whisper skipped)...")
+        words = dryrun.time_words(shots, durations)
+    else:
+        log(f"Transcribing narration for caption timing ({cfg.whisper_model})...")
+        words = captions.transcribe_words(str(full_narration), cfg.whisper_model)
     ass = job / "captions.ass"
     ass.write_text(captions.build_ass(words, cfg))
     log(f"  {len(words)} words timed")
@@ -125,13 +147,16 @@ def main() -> int:
     p.add_argument("--scenes", type=int, default=6, help="maximum scenes (default 6)")
     p.add_argument("--style", default="", help="visual style applied to every keyframe")
     p.add_argument("--out", type=Path, default=None, help="output path")
+    p.add_argument("--dry-run", action="store_true",
+                   help="use synthetic stages; needs only ffmpeg. Proves the "
+                        "orchestration and assembly work before you install any models.")
     args = p.parse_args()
 
     cfg = Config()
     cfg.work_dir.mkdir(parents=True, exist_ok=True)
     try:
         asyncio.run(build(args.premise, min(args.scenes, cfg.max_scenes),
-                          args.style, cfg, args.out))
+                          args.style, cfg, args.out, dry_run=args.dry_run))
     except Exception as exc:
         print(f"\nFailed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1

@@ -15,6 +15,15 @@ path; for local, start at [local/README.md](local/README.md).
 
 ---
 
+## Checking it works
+
+```bash
+./check.sh
+```
+
+Runs every test suite and reports which components are ready on this machine
+and what each still needs. No GPU, no credentials, rents nothing.
+
 > **Running this privately?** See **[PRIVACY.md](PRIVACY.md)**. This repo is
 > currently a public fork, which cannot be made private in place — that
 > document explains what to do instead, along with the other access controls

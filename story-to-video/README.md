@@ -84,6 +84,31 @@ Configuration lives in `config.py`, all overridable by environment variable:
 Both are safe to build on commercially. **XTTS-v2 (CPML) and F5-TTS weights
 (CC-BY-NC) are not** — worth knowing before the output gets monetised.
 
+## Testing it without any models
+
+```bash
+python3 pipeline.py "any premise" --scenes 4 --dry-run
+```
+
+Swaps the LLM, TTS, text-to-image and image-to-video stages for ffmpeg-generated
+placeholders and runs the **real** assembly. Needs nothing but ffmpeg, finishes
+in about a minute, and writes a genuine mp4 you can play — only the pixels and
+the voice are fake.
+
+It proves the parts most likely to be subtly wrong: that narration duration
+drives the cut, that every scene is trimmed to its own line, that captions stay
+in sync, and that the final mux holds together. A verified run looks like:
+
+```
+narration : 10.36s
+final.mp4 : 10.36s
+drift     : 0.000s
+scene 0: narration 2.50s -> video 2.50s  (delta 0.000s)
+```
+
+Each scene gets a distinct background colour, so a dropped or mis-ordered scene
+is obvious on playback rather than silently plausible.
+
 ## Tests
 
 ```bash
